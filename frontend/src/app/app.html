@@ -1,0 +1,9 @@
+@if (auth.isAuthenticated()) {
+  <app-navbar />
+}
+
+<main class="app-main" [class.app-main--centered]="!auth.isAuthenticated()">
+  <router-outlet />
+</main>
+
+<app-toast-container />

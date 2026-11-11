@@ -1,0 +1,117 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <h1>Mis autos</h1>
+      <p class="muted">
+        @if (hasFilters()) {
+          {{ cars().length }} resultado(s) con los filtros aplicados
+        } @else {
+          {{ cars().length }} auto(s) registrado(s)
+        }
+      </p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openCreate()">
+      <span aria-hidden="true">＋</span> Agregar auto
+    </button>
+  </header>
+
+  <!-- Búsqueda y filtros -->
+  <form class="filters card" [formGroup]="filters" (ngSubmit)="reload()" role="search">
+    <div class="field filters__search">
+      <label for="search">Buscar</label>
+      <input id="search" type="search" formControlName="search" placeholder="Placa o modelo..." autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="brand">Marca</label>
+      <select id="brand" formControlName="brand">
+        <option value="">Todas</option>
+        @for (brand of brands(); track brand) {
+          <option [value]="brand">{{ brand }}</option>
+        }
+      </select>
+    </div>
+    <div class="field filters__year">
+      <label for="year">Año</label>
+      <input id="year" type="number" formControlName="year" placeholder="Ej. 2022" min="1886" max="2100" />
+    </div>
+    <button type="button" class="btn btn-ghost filters__clear" (click)="clearFilters()" [disabled]="!hasFilters()">
+      Limpiar
+    </button>
+  </form>
+
+  <!-- Estados -->
+  @if (error()) {
+    <div class="state card">
+      <p class="state__icon" aria-hidden="true">⚠️</p>
+      <p>{{ error() }}</p>
+      <button type="button" class="btn btn-secondary" (click)="reload()">Reintentar</button>
+    </div>
+  } @else if (loading() && cars().length === 0) {
+    <div class="state card" aria-busy="true">
+      <span class="spinner" aria-hidden="true"></span>
+      <p>Cargando autos...</p>
+    </div>
+  } @else if (cars().length === 0) {
+    <div class="state card">
+      <p class="state__icon" aria-hidden="true">{{ hasFilters() ? '🔍' : '🚙' }}</p>
+      @if (hasFilters()) {
+        <p>Ningún auto coincide con la búsqueda.</p>
+        <button type="button" class="btn btn-secondary" (click)="clearFilters()">Limpiar filtros</button>
+      } @else {
+        <p>Aún no tienes autos registrados.</p>
+        <button type="button" class="btn btn-primary" (click)="openCreate()">Agregar mi primer auto</button>
+      }
+    </div>
+  } @else {
+    <div class="car-grid" [class.car-grid--loading]="loading()">
+      @for (car of cars(); track car.id) {
+        <article class="car-card card">
+          <div class="car-card__photo" aria-hidden="true">
+            <span class="car-card__icon">🚗</span>
+            @if (car.photoUrl) {
+              <span class="badge badge--muted car-card__photo-badge" title="{{ car.photoUrl }}">📷 Foto (simulada)</span>
+            }
+          </div>
+
+          <div class="car-card__body">
+            <div class="car-card__title">
+              <h2>{{ car.brand }} {{ car.model }}</h2>
+              <span class="badge">{{ car.year }}</span>
+            </div>
+            <dl class="car-card__meta">
+              <div>
+                <dt>Placa</dt>
+                <dd><span class="plate">{{ car.plateNumber }}</span></dd>
+              </div>
+              <div>
+                <dt>Color</dt>
+                <dd>{{ car.color }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <footer class="car-card__actions">
+            <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(car)"
+                    [attr.aria-label]="'Editar ' + car.brand + ' ' + car.model">Editar</button>
+            <button type="button" class="btn btn-danger-outline btn-sm" (click)="askDelete(car)"
+                    [attr.aria-label]="'Eliminar ' + car.brand + ' ' + car.model">Eliminar</button>
+          </footer>
+        </article>
+      }
+    </div>
+  }
+</section>
+
+@if (formOpen()) {
+  <app-car-form [car]="editingCar()" (saved)="onSaved($event)" (closed)="closeForm()" />
+}
+
+@if (carToDelete(); as car) {
+  <app-confirm-dialog
+    title="Eliminar auto"
+    [message]="'¿Seguro que deseas eliminar el ' + car.brand + ' ' + car.model + ' (placa ' + car.plateNumber + ')? Esta acción no se puede deshacer.'"
+    confirmText="Eliminar"
+    [busy]="deleting()"
+    (confirmed)="confirmDelete(car)"
+    (cancelled)="carToDelete.set(null)" />
+}

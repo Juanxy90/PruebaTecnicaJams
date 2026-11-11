@@ -1,0 +1,119 @@
+name: ufinet-autos
+
+# Variables con valores por defecto (se pueden sobrescribir en un archivo .env; ver .env.example)
+x-db-env: &db-env
+  DB_URL: jdbc:sqlserver://sqlserver:1433;databaseName=ufinet_autos;encrypt=true;trustServerCertificate=true
+  DB_USERNAME: sa
+  DB_PASSWORD: ${MSSQL_SA_PASSWORD:-Ufinet#2026Strong}
+
+x-jwt-env: &jwt-env
+  JWT_SECRET: ${JWT_SECRET:-3AumwJ9Q1DMui4BH/cavAZDGdVQQ5uoPPY0fbE6lQZPxgii5rbRMCaw01Ormv72AkFHHktAQuuFYbGYik5LJXg==}
+  JWT_ISSUER: ufinet-autos-auth
+
+services:
+
+  # ---------------------------------------------------------------- Base de datos
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: ufinet-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Ufinet#2026Strong}
+    ports:
+      - "${SQLSERVER_PORT:-1433}:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks: [backend]
+
+  # Ejecuta los scripts de creación de tablas y datos de prueba (una sola vez por arranque)
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: ufinet-db-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Ufinet#2026Strong}
+    volumes:
+      - ./database:/scripts:ro
+    entrypoint:
+      - /bin/bash
+      - -c
+      - /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -i /scripts/01-schema.sql,/scripts/02-seed.sql
+    restart: "no"
+    networks: [backend]
+
+  # ---------------------------------------------------------------- Microservicios
+  auth-service:
+    build: ./backend/auth-service
+    image: ufinet-autos/auth-service:1.0.0
+    container_name: ufinet-auth-service
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      <<: [*db-env, *jwt-env]
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-60}
+    ports:
+      - "8081:8081"   # expuesto solo para Swagger/depuración; el frontend usa el gateway
+    networks: [backend]
+    restart: unless-stopped
+
+  car-service:
+    build: ./backend/car-service
+    image: ufinet-autos/car-service:1.0.0
+    container_name: ufinet-car-service
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      <<: [*db-env, *jwt-env]
+    ports:
+      - "8082:8082"   # expuesto solo para Swagger/depuración; el frontend usa el gateway
+    networks: [backend]
+    restart: unless-stopped
+
+  api-gateway:
+    build: ./backend/api-gateway
+    image: ufinet-autos/api-gateway:1.0.0
+    container_name: ufinet-api-gateway
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      car-service:
+        condition: service_healthy
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8081
+      CAR_SERVICE_URL: http://car-service:8082
+      ALLOWED_ORIGINS: http://localhost:4200,http://localhost
+    ports:
+      - "8080:8080"
+    networks: [backend, frontend]
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- Frontend
+  frontend:
+    build: ./frontend
+    image: ufinet-autos/frontend:1.0.0
+    container_name: ufinet-frontend
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "4200:80"
+    networks: [frontend]
+    restart: unless-stopped
+
+networks:
+  backend:
+  frontend:
+
+volumes:
+  mssql-data:

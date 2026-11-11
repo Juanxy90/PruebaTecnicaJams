@@ -1,0 +1,53 @@
+server:
+  port: ${SERVER_PORT:8081}
+  error:
+    include-stacktrace: never
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=ufinet_autos;encrypt=true;trustServerCertificate=true}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:Ufinet#2026Strong}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 30000
+  jpa:
+    open-in-view: false
+    show-sql: false
+    hibernate:
+      # El esquema lo crea el script database/01-schema.sql; Hibernate solo lo valida.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        # Mapea String -> NVARCHAR (Unicode) en SQL Server
+        use_nationalized_character_data: true
+
+security:
+  jwt:
+    # Clave HMAC-SHA en Base64 (>= 256 bits). En Docker se inyecta por la variable JWT_SECRET.
+    secret: ${JWT_SECRET:3AumwJ9Q1DMui4BH/cavAZDGdVQQ5uoPPY0fbE6lQZPxgii5rbRMCaw01Ormv72AkFHHktAQuuFYbGYik5LJXg==}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+    issuer: ${JWT_ISSUER:ufinet-autos-auth}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.ufinet.autos: INFO

@@ -1,0 +1,321 @@
+{
+  "info": {
+    "_postman_id": "6c1f4a52-2b8e-4f7a-9d55-0f1e8c3a7b10",
+    "name": "Ufinet Autos API",
+    "description": "Colección de la API de Ufinet Autos (microservicios detrás del API Gateway).\n\nFlujo sugerido:\n1. Autenticación > Login (guarda el token automáticamente en la variable `token`).\n2. Ejecute las peticiones de la carpeta Autos.\n\nLa variable `baseUrl` apunta al API Gateway (http://localhost:8080).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "carId", "value": "" },
+    { "key": "email", "value": "demo@ufinet.com" },
+    { "key": "password", "value": "Password123" }
+  ],
+  "item": [
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "Registrar usuario",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.collectionVariables.set('newEmail', `usuario${Date.now()}@ufinet.com`);"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Devuelve accessToken', () => pm.expect(body.accessToken).to.be.a('string'));",
+                  "pm.collectionVariables.set('token', body.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Usuario Postman\",\n  \"email\": \"{{newEmail}}\",\n  \"password\": \"Password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+            "description": "Registra un usuario nuevo en BD y devuelve un JWT. Correo duplicado → 409."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Token tipo Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));",
+                  "pm.collectionVariables.set('token', body.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "description": "Valida credenciales y devuelve el JWT. El script guarda el token en la variable `token`."
+          }
+        },
+        {
+          "name": "Login - credenciales inválidas (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"] }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"incorrecta\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Mi perfil",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/users/me", "host": ["{{baseUrl}}"], "path": ["api", "users", "me"] },
+            "description": "Requiere token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Autos",
+      "item": [
+        {
+          "name": "Listar autos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/cars", "host": ["{{baseUrl}}"], "path": ["api", "cars"] }
+          }
+        },
+        {
+          "name": "Buscar por placa o modelo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cars?search=coro",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cars"],
+              "query": [{ "key": "search", "value": "coro", "description": "Texto contenido en la placa o en el modelo" }]
+            }
+          }
+        },
+        {
+          "name": "Filtrar por marca y año",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cars?brand=Toyota&year=2022",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cars"],
+              "query": [
+                { "key": "brand", "value": "Toyota" },
+                { "key": "year", "value": "2022" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Marcas del usuario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/cars/brands", "host": ["{{baseUrl}}"], "path": ["api", "cars", "brands"] }
+          }
+        },
+        {
+          "name": "Crear auto",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.collectionVariables.set('plate', 'PM-' + String(Date.now()).slice(-6));"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Header Location', () => pm.response.to.have.header('Location'));",
+                  "pm.collectionVariables.set('carId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brand\": \"Ford\",\n  \"model\": \"Ranger\",\n  \"year\": 2024,\n  \"plateNumber\": \"{{plate}}\",\n  \"color\": \"Negro\",\n  \"photoUrl\": \"/uploads/cars/ranger.jpg\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/cars", "host": ["{{baseUrl}}"], "path": ["api", "cars"] },
+            "description": "photoUrl es un campo simulado (la subida de archivos no es funcional)."
+          }
+        },
+        {
+          "name": "Obtener auto por id",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/cars/{{carId}}", "host": ["{{baseUrl}}"], "path": ["api", "cars", "{{carId}}"] }
+          }
+        },
+        {
+          "name": "Editar auto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Color actualizado', () => pm.expect(pm.response.json().color).to.eql('Azul'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brand\": \"Ford\",\n  \"model\": \"Ranger Raptor\",\n  \"year\": 2025,\n  \"plateNumber\": \"{{plate}}\",\n  \"color\": \"Azul\",\n  \"photoUrl\": null\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/cars/{{carId}}", "host": ["{{baseUrl}}"], "path": ["api", "cars", "{{carId}}"] }
+          }
+        },
+        {
+          "name": "Crear auto - validación (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+                  "pm.test('Errores por campo', () => pm.expect(pm.response.json().errors).to.be.an('object'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"brand\": \"\",\n  \"model\": \"X\",\n  \"year\": 1700,\n  \"plateNumber\": \"*\",\n  \"color\": \"\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/cars", "host": ["{{baseUrl}}"], "path": ["api", "cars"] }
+          }
+        },
+        {
+          "name": "Crear auto - placa duplicada (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('409 Conflict', () => pm.response.to.have.status(409));"] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brand\": \"Ford\",\n  \"model\": \"Ranger\",\n  \"year\": 2024,\n  \"plateNumber\": \"{{plate}}\",\n  \"color\": \"Negro\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/cars", "host": ["{{baseUrl}}"], "path": ["api", "cars"] }
+          }
+        },
+        {
+          "name": "Eliminar auto",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204));"] }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/cars/{{carId}}", "host": ["{{baseUrl}}"], "path": ["api", "cars", "{{carId}}"] }
+          }
+        },
+        {
+          "name": "Listar autos sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"] }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/cars", "host": ["{{baseUrl}}"], "path": ["api", "cars"] }
+          }
+        }
+      ]
+    }
+  ]
+}

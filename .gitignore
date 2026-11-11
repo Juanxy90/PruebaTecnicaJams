@@ -1,0 +1,21 @@
+# Entorno
+.env
+
+# Java / Maven
+target/
+*.class
+*.log
+
+# IDEs
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+
+# Angular / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+npm-install.log

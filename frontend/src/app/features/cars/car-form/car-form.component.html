@@ -1,0 +1,94 @@
+<div class="modal-backdrop" (click)="close()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="car-form-title" (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h2 id="car-form-title">{{ isEdit ? 'Editar auto' : 'Agregar auto' }}</h2>
+      <button type="button" class="icon-btn" aria-label="Cerrar" (click)="close()">×</button>
+    </header>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="modal-body">
+        @if (errorMessage()) {
+          <div class="alert alert-error" role="alert">{{ errorMessage() }}</div>
+        }
+
+        <div class="field-row">
+          <div class="field">
+            <label for="brand">Marca *</label>
+            <input id="brand" type="text" formControlName="brand" placeholder="Toyota" [class.invalid]="isInvalid('brand')" />
+            @if (isInvalid('brand')) {
+              <small class="field-error">La marca es obligatoria (máx. 50 caracteres)</small>
+            }
+          </div>
+          <div class="field">
+            <label for="model">Modelo *</label>
+            <input id="model" type="text" formControlName="model" placeholder="Corolla" [class.invalid]="isInvalid('model')" />
+            @if (isInvalid('model')) {
+              <small class="field-error">El modelo es obligatorio (máx. 50 caracteres)</small>
+            }
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="year">Año *</label>
+            <input id="year" type="number" formControlName="year" placeholder="2022" min="1886" [max]="maxYear"
+                   [class.invalid]="isInvalid('year')" />
+            @if (isInvalid('year')) {
+              <small class="field-error">Ingrese un año entre 1886 y {{ maxYear }}</small>
+            }
+          </div>
+          <div class="field">
+            <label for="plateNumber">Número de placa *</label>
+            <input id="plateNumber" type="text" formControlName="plateNumber" placeholder="ABC-123" maxlength="12"
+                   (blur)="normalizePlate()" class="uppercase" [class.invalid]="isInvalid('plateNumber')" />
+            @if (isInvalid('plateNumber')) {
+              <small class="field-error">5 a 10 caracteres: letras, números o '-'</small>
+            }
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="color">Color *</label>
+          <input id="color" type="text" formControlName="color" placeholder="Rojo" [class.invalid]="isInvalid('color')" />
+          @if (isInvalid('color')) {
+            <small class="field-error">El color es obligatorio (máx. 30 caracteres)</small>
+          }
+        </div>
+
+        <!-- Foto: campo simulado (no se sube el archivo) -->
+        <div class="field">
+          <span class="label">Foto del auto <span class="muted">(simulada)</span></span>
+          <div class="photo-field">
+            <div class="photo-preview">
+              @if (photoPreview()) {
+                <img [src]="photoPreview()" alt="Vista previa de la foto del auto" />
+              } @else {
+                <span aria-hidden="true">{{ form.controls.photoUrl.value ? '📷' : '🚗' }}</span>
+              }
+            </div>
+            <div class="photo-actions">
+              <label class="btn btn-secondary btn-sm" for="photo">Seleccionar imagen</label>
+              <input id="photo" class="visually-hidden" type="file" accept="image/*" (change)="onPhotoSelected($event)" />
+              @if (form.controls.photoUrl.value) {
+                <button type="button" class="btn btn-ghost btn-sm" (click)="removePhoto()">Quitar</button>
+                <small class="muted photo-url" [title]="form.controls.photoUrl.value">{{ form.controls.photoUrl.value }}</small>
+              } @else {
+                <small class="muted">La imagen no se envía al servidor; solo se guarda una URL simulada.</small>
+              }
+              @if (photoError()) {
+                <small class="field-error">{{ photoError() }}</small>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-ghost" (click)="close()" [disabled]="submitting()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" [disabled]="submitting()">
+          {{ submitting() ? 'Guardando...' : (isEdit ? 'Guardar cambios' : 'Agregar auto') }}
+        </button>
+      </footer>
+    </form>
+  </div>
+</div>
